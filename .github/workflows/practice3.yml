@@ -1,0 +1,101 @@
+name: Practice 3 - Deploy and Test
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  COMPOSE_PROJECT_NAME: myapp
+
+defaults:
+  run:
+    working-directory: practice3
+
+jobs:
+  deploy-and-test:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create .env file from secrets
+        run: |
+          cat > .env << EOF
+          DB_HOST=${{ secrets.DB_HOST }}
+          DB_PORT=${{ secrets.DB_PORT }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          APP_PORT=${{ secrets.APP_PORT }}
+          APP_SECRET=${{ secrets.APP_SECRET }}
+          API_KEY=${{ secrets.API_KEY }}
+          COMPOSE_PROJECT_NAME=${{ env.COMPOSE_PROJECT_NAME }}
+          EOF
+          echo ".env создан, значения скрыты:"
+          sed 's/=.*/=***/' .env | tee env-masked.txt
+
+      - name: Deploy with Docker Compose
+        run: |
+          docker-compose down -v
+          docker-compose up -d --build
+          sleep 15
+          docker-compose ps
+
+      - name: Verify containers are running
+        run: |
+          if [ "$(docker-compose ps --status running -q | wc -l)" -eq 2 ]; then
+            echo "Все контейнеры запущены"
+          else
+            echo "Не все контейнеры запущены"
+            docker-compose logs
+            exit 1
+          fi
+
+      - name: Test 1 - application and database
+        run: |
+          curl -f http://localhost:${{ secrets.APP_PORT }}/health
+          echo
+          curl -f http://localhost:${{ secrets.APP_PORT }}/api/data
+          echo
+          echo "Приложение работает и подключено к БД"
+
+      - name: Test 2 - compare DB and web interface
+        run: |
+          DB_COUNT=$(docker-compose exec -T db psql -U ${{ secrets.DB_USER }} -d ${{ secrets.DB_NAME }} -t -c "SELECT COUNT(*) FROM items;" | tr -d ' \n')
+          WEB_COUNT=$(curl -s http://localhost:${{ secrets.APP_PORT }}/ | grep -o "<li>" | wc -l | tr -d ' ')
+          echo "Записей в БД: $DB_COUNT"
+          echo "Записей на веб-странице: $WEB_COUNT"
+          cat > test-report.md << EOF
+          # Отчёт о тестировании
+          - Дата: $(date)
+          - Записей в БД: $DB_COUNT
+          - Записей на веб-странице: $WEB_COUNT
+          EOF
+          if [ "$DB_COUNT" = "$WEB_COUNT" ]; then
+            echo "- Результат: PASSED" >> test-report.md
+            echo "Данные совпадают"
+          else
+            echo "- Результат: FAILED" >> test-report.md
+            echo "Данные не совпадают"
+            exit 1
+          fi
+
+      - name: Save Docker logs
+        if: always()
+        run: |
+          docker-compose logs > deployment-logs.txt
+          docker-compose ps > docker-ps.txt
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-artifacts
+          path: |
+            practice3/env-masked.txt
+            practice3/test-report.md
+            practice3/deployment-logs.txt
+            practice3/docker-ps.txt
+          retention-days: 30
