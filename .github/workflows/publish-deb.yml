@@ -1,0 +1,64 @@
+name: Practice 5 - Build and publish syspulse
+
+on:
+  push:
+    branches: [release]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practice5-nexus-syspulse
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+    working-directory: practice5
+
+jobs:
+  build-publish-verify:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21.13'
+          cache: false
+
+      - name: Build static Linux amd64 binary
+        run: ./scripts/build.sh
+
+      - name: Package as Debian archive
+        id: package
+        run: ./scripts/package.sh
+
+      - name: Publish to Nexus hosted APT
+        env:
+          NEXUS_HOST: ${{ secrets.NEXUS_HOST }}
+          NEXUS_USER: ${{ secrets.NEXUS_USER }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+          DEB: ${{ steps.package.outputs.deb }}
+        run: ./scripts/publish.sh "$DEB"
+
+      - name: Install with APT in fresh Ubuntu 22.04
+        env:
+          VERSION: ${{ steps.package.outputs.version }}
+        run: ./scripts/verify.sh "$VERSION"
+
+      - name: Save package and verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: syspulse-deb
+          path: |
+            practice5/dist/*.deb
+            practice5/dist/SHA256SUMS
+            practice5/dist/*.txt
+            practice5/dist/InRelease
+          retention-days: 7
