@@ -1,0 +1,61 @@
+name: Practice 4 - Mattermost MySQL to PostgreSQL
+
+on:
+  push:
+    branches: [migration]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: practice4-mattermost-migration
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  migrate-and-deploy:
+    if: github.ref == 'refs/heads/migration'
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 30
+    env:
+      DB_MYSQL_ROOT_PASSWORD: ${{ secrets.DB_MYSQL_ROOT_PASSWORD }}
+      DB_MYSQL_PASSWORD: ${{ secrets.DB_MYSQL_PASSWORD }}
+      DB_POSTGRES_PASSWORD: ${{ secrets.DB_POSTGRES_PASSWORD }}
+      MM_DEMO_PASSWORD: ${{ secrets.MM_DEMO_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check persistent migration flag
+        id: status
+        run: |
+          mkdir -p evidence
+          ./scripts/migration.sh check | tee evidence/status.txt
+          sed -n '/^already_migrated=/p' evidence/status.txt >>"$GITHUB_OUTPUT"
+
+      - name: Back up MySQL with writes stopped
+        if: steps.status.outputs.already_migrated == 'false'
+        run: ./scripts/migration.sh backup | tee evidence/backup.txt
+
+      - name: Migrate with pgloader and upgrade PostgreSQL schema
+        if: steps.status.outputs.already_migrated == 'false'
+        run: ./scripts/migration.sh migrate | tee evidence/migration.txt
+
+      - name: Deploy, verify preserved data and remove MySQL orphan
+        run: ./scripts/migration.sh deploy | tee evidence/verification.txt
+
+      - name: Restore legacy application after an incomplete migration
+        if: failure() && steps.status.outputs.already_migrated == 'false'
+        run: ./scripts/migration.sh restore-legacy
+
+      - name: Save non-sensitive verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mattermost-migration-attempt-${{ github.run_attempt }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 30

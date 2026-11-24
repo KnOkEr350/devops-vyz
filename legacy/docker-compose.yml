@@ -1,0 +1,45 @@
+name: devops-practice4-mattermost
+
+services:
+  mattermost:
+    image: mattermost/mattermost-team-edition:9.5.2
+    platform: linux/amd64
+    environment:
+      MM_SQLSETTINGS_DRIVERNAME: mysql
+      MM_SQLSETTINGS_DATASOURCE: mmuser:${DB_MYSQL_PASSWORD:?Set DB_MYSQL_PASSWORD}@tcp(db-mysql:3306)/mattermost?charset=utf8mb4,utf8&readTimeout=30s&writeTimeout=30s
+      MM_SERVICESETTINGS_SITEURL: http://127.0.0.1:8065
+      MM_EMAILSETTINGS_REQUIREEMAILVERIFICATION: "false"
+      MM_TEAMSETTINGS_ENABLEOPENSERVER: "false"
+      MM_PLUGINSETTINGS_ENABLE: "false"
+      MM_FILESETTINGS_DRIVERNAME: local
+      MM_FILESETTINGS_DIRECTORY: /mattermost/data
+    ports: ["127.0.0.1:8065:8065"]
+    volumes: ["mattermost_data:/mattermost/data"]
+    networks: [mattermost]
+    depends_on:
+      db-mysql:
+        condition: service_healthy
+
+  db-mysql:
+    image: mysql:8.0
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_general_ci", "--default-authentication-plugin=mysql_native_password"]
+    environment:
+      MYSQL_DATABASE: mattermost
+      MYSQL_USER: mmuser
+      MYSQL_PASSWORD: ${DB_MYSQL_PASSWORD:?Set DB_MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_MYSQL_ROOT_PASSWORD:?Set DB_MYSQL_ROOT_PASSWORD}
+    volumes: ["mysql_data:/var/lib/mysql"]
+    networks: [mattermost]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql -h 127.0.0.1 -u \"$$MYSQL_USER\" \"$$MYSQL_DATABASE\" -Nse 'SELECT 1'"]
+      interval: 4s
+      timeout: 4s
+      retries: 35
+
+networks:
+  mattermost:
+    driver: bridge
+
+volumes:
+  mattermost_data:
+  mysql_data:
