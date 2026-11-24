@@ -10,6 +10,6 @@
 
 ## Стенд на Mac
 
-Nexus 3 работает в контейнере `devops-practice5-nexus` с постоянным томом `devops-practice5-nexus-data`. Его UI доступен на <http://localhost:8081>. Контейнер Nginx `devops-practice5-https` обслуживает HTTPS на 18443 и передаёт запросы Nexus. Контейнер проверки обращается к нему по имени `nexus.syspulse.test` в сети `devops-practice5`. Конфигурация прокси находится в `nexus/nginx.conf`.
+Учебный стенд использует Nexus Repository OSS 3.76.1 в контейнере `devops-practice5-nexus-oss` с постоянным томом `devops-practice5-nexus-oss-data`. Интерфейс доступен только с Mac по адресу <http://127.0.0.1:18081>. Эта версия применяется на локальном стенде. Актуальная Community Edition требует принятия [условий Sonatype](https://help.sonatype.com/en/ce-onboarding.html) перед первой публикацией. Контейнер Nginx `devops-practice5-https` обслуживает HTTPS на 18443 и передаёт запросы Nexus. Контейнер проверки обращается к нему по имени `nexus.syspulse.test` в сети `devops-practice5`. Конфигурация прокси находится в `nexus/nginx.conf`.
 
 Для повторного запуска ранеру нужны Docker Desktop, запущенные Nexus и Nginx, а также Actions Secrets `NEXUS_HOST`, `NEXUS_USER`, `NEXUS_PASSWORD`. На этом стенде `NEXUS_HOST` указывает на IPv4 loopback Mac. Учётная запись публикации имеет права на репозиторий `syspulse`. Используйте **Re-run all jobs** в Actions для проверки повторного прогона.
