@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 version=${1:?Expected package version}
-docker run --rm --platform linux/amd64 --network devops-practice5 \
+docker run --rm -i --platform linux/amd64 --network devops-practice5 \
   --mount "type=bind,src=$PWD/keys,dst=/keys,readonly" \
   ubuntu:22.04 bash -euo pipefail -s -- "$version" <<'CONTAINER' | tee dist/apt-verification.txt
 test "$(dpkg --print-architecture)" = amd64

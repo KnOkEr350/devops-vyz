@@ -9,7 +9,7 @@ epoch=$(git log -1 --format=%ct -- main.go)
 deb="syspulse_${version}_amd64.deb"
 export SOURCE_DATE_EPOCH="$epoch"
 
-docker run --rm --platform linux/amd64 \
+docker run --rm -i --platform linux/amd64 \
   --user "$(id -u):$(id -g)" --mount "type=bind,src=$PWD/dist,dst=/dist" \
   --env SOURCE_DATE_EPOCH ubuntu:22.04 bash -euo pipefail -s -- "$version" "$deb" <<'CONTAINER' | tee dist/package-info.txt
 root=$(mktemp -d)
