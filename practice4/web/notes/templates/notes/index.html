@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Журнал заметок</title>
+    <style>
+        :root { font-family: system-ui, sans-serif; color: #15251f; background: #f3f5ee; }
+        main { max-width: 38rem; margin: 8vh auto; padding: 0 1rem; }
+        h1 { font-size: clamp(2rem, 6vw, 3.5rem); line-height: 1.08; margin-bottom: .4rem; }
+        h2 { font-size: 1.2rem; }
+        form, section { background: white; border: 1px solid #d9e1d9; border-radius: .8rem; padding: 1.2rem; margin-block: 1.2rem; }
+        label { display: block; margin-bottom: .4rem; font-weight: 600; }
+        input { width: 100%; box-sizing: border-box; border: 1px solid #7c9386; border-radius: .35rem; font: inherit; padding: .6rem; }
+        button { background: #234e3a; color: white; border: 0; border-radius: .35rem; font: inherit; padding: .6rem .9rem; cursor: pointer; }
+        li { padding-block: .35rem; overflow-wrap: anywhere; }
+    </style>
+</head>
+<body>
+<main>
+    <h1>Журнал заметок</h1>
+    <p>Django и PostgreSQL в Docker Compose</p>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Сохранить</button>
+    </form>
+    <section aria-labelledby="notes">
+        <h2 id="notes">Последние записи</h2>
+        <ul>
+            {% for note in notes %}
+                <li>{{ note.text }}</li>
+            {% empty %}
+                <li>Заметок пока нет</li>
+            {% endfor %}
+        </ul>
+    </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,47 @@
+name: Practice 4 - Docker Compose and persistent PostgreSQL
+
+on:
+  push:
+    branches: [docker-practice4]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: practice4
+    shell: bash
+
+jobs:
+  compose-smoke:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 20
+    env:
+      COMPOSE_PROJECT_NAME: p4-django-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      APP_PORT: '0'
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare isolated Compose project
+        run: ./scripts/init-env.sh
+      - name: Validate and build Compose stack
+        run: |
+          docker compose config --quiet
+          docker compose up -d --build --wait --wait-timeout 120
+      - name: Check HTTP, database and persistence
+        run: ./scripts/smoke.sh | tee compose-verification.txt
+      - name: Save verification log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-verification
+          path: practice4/compose-verification.txt
+          if-no-files-found: ignore
+      - name: Clean up CI project
+        if: always()
+        run: |
+          if test -f .env; then
+            docker compose down -v --remove-orphans
+            rm -f .env
+          fi
