@@ -143,7 +143,7 @@ LOAD DATABASE
  WITH include drop, create tables, create no indexes, no foreign keys,
       downcase identifiers, workers = 2, concurrency = 1
 
- CAST type tinyint when (<= precision 4) to boolean using tinyint-to-boolean;
+ CAST type tinyint when (<= precision 4) to boolean drop typemod using tinyint-to-boolean;
 LOAD
   run_pgloader landing.load
   postgres_counts mattermost_landing mattermost >"$run_dir/landing-counts.tsv"
@@ -180,7 +180,7 @@ LOAD DATABASE
     'configurations', 'configurationfiles', 'db_config_migrations';
 LOAD
   run_pgloader native.load
-  pg_sql mattermost -q -c 'ALTER SCHEMA mattermost RENAME TO public;'
+  pg_sql mattermost -q -c 'ALTER SCHEMA mattermost RENAME TO public; ALTER DATABASE mattermost SET search_path TO public;'
   postgres_counts mattermost public >"$run_dir/native-counts.tsv"
   diff -u "$run_dir/mysql-counts.tsv" "$run_dir/native-counts.tsv"
   printf 'Counts copied into the native PostgreSQL schema:\n'
